@@ -1,19 +1,24 @@
 description = [[
-Posts specially crafted strings to every form it
-encounters and then searches through the website for those
-strings to determine whether the payloads were successful.
+
+Spiders an HTTP server looking for forms and tries to determine
+if they are vulnerable to XSS attacks.
+
+The script works in two phases. It spiders an HTTP server looking
+for forms in the response using http.grab_forms. It then injects 
+crafted payloads into the forms and searches the response body to
+check if the payloads were successful.
+
+References : https://www.owasp.org/index.php/Cross-site_Scripting_(XSS)
+
 ]]
 
 ---
 -- @usage nmap -p80 --script http-stored-xss.nse <target>
 --
--- This script works in two phases.
--- 1) Posts specially crafted strings to every form it encounters.
--- 2) Crawls through the page searching for these strings.
---
--- If any string is reflected on some page without any proper
--- HTML escaping, it's a sign for potential XSS vulnerability.
---
+-- @args http-stored-xss.url the url to start spidering. This is a URL
+--       relative to the scanned host eg. /default.html (default: /)
+-- @args http-stored-xss.maxpagecount the maximum amount of pages to visit.
+--       A negative value disables the limit (default: 20)
 -- @args http-stored-xss.formpaths The pages that contain
 --       the forms to exploit. For example, {/upload.php,  /login.php}.
 --       Default: nil (crawler mode on)
@@ -25,8 +30,9 @@ strings to determine whether the payloads were successful.
 --       fields' restrictions. You can manually fill those fields using
 --       this table. For example, {gender = "male", email = "foo@bar.com"}.
 --       Default: {}
--- @args http-stored-xss.dbfile The path of a plain text file
---       that contains one XSS vector per line. Default: nil
+-- @args http-stored-xss.payloads The path of a plain text file
+--       that contains one XSS vector per line. 
+--       The default file is nselib/data/http-xss-payloads.lst
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -65,24 +71,9 @@ local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
 
-portrule = shortport.port_or_service( {80, 443}, {"http", "https"}, "tcp", "open")
+portrule = shortport.http
 
-
--- A list of payloads.
---
--- You can manually add / remove your own payloads but make sure you
--- don't mess up, otherwise the script may succeed when it actually
--- hasn't.
---
--- Note, that more payloads will slow down your scan.
-payloads = {
-
-  -- Basic vectors. Each one is an indication of potential XSS vulnerability.
-  { vector = 'ghz>hzx', description = "Unfiltered '>' (greater than sign). An indication of potential XSS vulnerability." },
-  { vector = 'hzx"zxc', description = "Unfiltered \" (double quotation mark). An indication of potential XSS vulnerability." },
-  { vector = 'zxc\'xcv', description = "Unfiltered ' (apostrophe). An indication of potential XSS vulnerability." },
-}
-
+local payloads = {}
 
 -- Create customized requests for all of our payloads.
 local makeRequests = function(host, port, submission, fields, fieldvalues)
@@ -121,7 +112,6 @@ end
 
 -- Check if the payloads were successful by checking the content of pages in the uploadspaths array.
 local checkRequests = function(body, target)
-
   local output = {}
   for _, p in ipairs(payloads) do
     if checkPayload(body, p.vector) then
@@ -135,28 +125,34 @@ local checkRequests = function(body, target)
   return output
 end
 
-local readFromFile = function(filename)
-  local database = { }
-  for l in io.lines(filename) do
-    table.insert(payloads, { vector = l })
-  end
+local readFromFile = function(payload)
+  local f = nmap.fetchfile(payload)
+  if f then 
+    for l in io.lines(payload) do
+      table.insert(payloads, { vector = l })
+    end
+  en
 end
 
 action = function(host, port)
-
   local formpaths = stdnse.get_script_args("http-stored-xss.formpaths")
   local uploadspaths = stdnse.get_script_args("http-stored-xss.uploadspaths")
   local fieldvalues = stdnse.get_script_args("http-stored-xss.fieldvalues") or {}
-  local dbfile = stdnse.get_script_args("http-stored-xss.dbfile")
+  local payload = stdnse.get_script_args("http-stored-xss.payload") or 'nselib/data/http-xss-payload.lst'
 
-  if dbfile then
-    readFromFile(dbfile)
-  end
+  readFromFile(payload)
 
   local returntable = {}
   local result
 
-  local crawler = httpspider.Crawler:new( host, port, '/', { scriptname = SCRIPT_NAME,  no_cache = true } )
+  for i,v in pairs(payloads) do
+    print(i,v)
+    for ii,vv in ipairs(v) do
+      print(ii,vv)
+    end
+  end
+
+  local crawler = httpspider.Crawler:new( host, port, '/', { scriptname = SCRIPT_NAME,  no_cache = true} )
 
   if (not(crawler)) then
     return
@@ -175,7 +171,7 @@ action = function(host, port)
       if (k == nil) then
         break
       end
-      response = http.get(host, port, target, { no_cache = true })
+      response = http.get(host, port, target, { no_cache = true, cookie})
       target = host.name .. target
     else
 
@@ -214,7 +210,7 @@ action = function(host, port)
           else
             local path_cropped = string.match(target, "(.*/).*")
             path_cropped = path_cropped and path_cropped or ""
-            submission = path_cropped..form["action"]
+            submission = path_cropped..form["action"] 
           end
 
           makeRequests(host, port, submission, form["fields"], fieldvalues)
