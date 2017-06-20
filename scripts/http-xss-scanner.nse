@@ -61,22 +61,20 @@ categories = {"intrusive", "vuln"}
 
 portrule = shortport.http
 
-local payloads = {}
+payloads = {
+
+}
+
 
 -- Create customized requests for all of our payloads.
-local makeRequests = function(host, port, submission, fields, fieldvalues)
+local makeRequests = function(host, port, submission, fields)
 
   local postdata = {}
   for _, p in ipairs(payloads) do
     for __, field in ipairs(fields) do
       if field["type"] == "text" or field["type"] == "textarea" or field["type"] == "radio" or field["type"] == "checkbox" then
 
-        local value = fieldvalues[field["name"]]
-        if value == nil then
-          value = p.vector
-        end
-
-        postdata[field["name"]] = value
+        postdata[field["name"]] = p.vector
 
       end
     end
@@ -113,14 +111,14 @@ local checkRequests = function(body, target)
   return output
 end
 
-local readFromFile = function(payload)
+--[[local readFromFile = function(payload)
   local f = nmap.fetchfile(payload)
   if f then 
     for l in io.lines(payload) do
       table.insert(payloads, { vector = l })
     end
   end
-end
+end]]--
 
 local getHostPort = function(parsed)
   return parsed.host, parsed.port or url.get_default_port(parsed.scheme)
@@ -144,11 +142,11 @@ local getReflected = function(parsed, r)
   if count > 0 then
     return reflected_values,not_reflected_values,q
   end
-end
+end 
 
 local createMinedLinks = function(reflected_values, all_values)
   local new_links = {}
-  for _,p in pairs(payloads)
+  for _,p in pairs(payloads) do
     for k,v in pairs(reflected_values) do
       -- First  of all, add the payload to the reflected param
       local urlParams = { [k] = v .. p.vector}
@@ -160,6 +158,7 @@ local createMinedLinks = function(reflected_values, all_values)
       new_links[k] = url.build_query(urlParams)
     end
   return new_links
+  end
 end
 
 local visitLinks = function(host, port,parsed,new_links, returntable,original_url)
@@ -171,21 +170,23 @@ local visitLinks = function(host, port,parsed,new_links, returntable,original_ur
     stdnse.debug2("Url to visit: %s", url)
     local response = http.get(host, port, url)
     for _,p in pairs(payloads) do
-      if resonse.body::find(p.vector) then table.insert(returntable, ("[%s] reflected in parameter %s at %s"):format(p, k, original_url))
+      if resonse.body:find(p.vector) then 
+        table.insert(returntable, ("[%s] reflected in parameter %s at %s"):format(p, k, original_url))
+      end
       --Append one after the another..
     end
   end
-end
+end 
 
 action = function(host, port)
   local payload = stdnse.get_script_args("http-xss-scanner.payload") or 'nselib/data/http-xss-payload.lst'
 
-  readFromFile(payload)
+  --readFromFile(payload)
 
   local returntable = {}
   local result
 
-  local crawler = httpspider.Crawler:new( host, port, '/', { scriptname = SCRIPT_NAME,  no_cache = true} )
+  local crawler = httpspider.Crawler:new( host, port, '/level1/frame', { scriptname = SCRIPT_NAME,  no_cache = true} )
 
   if (not(crawler)) then
     return
@@ -248,7 +249,7 @@ Forms and URLs arent handling certain payloads properlyy resulting in XSS vulner
             submission = path_cropped..form["action"] 
           end
 
-          makeRequests(host, port, submission, form["fields"], fieldvalues)
+          makeRequests(host, port, submission, form["fields"])
 
         end
       end
@@ -314,7 +315,7 @@ Forms and URLs arent handling certain payloads properlyy resulting in XSS vulner
     end
   end
 
-  if ( #returnable > 0 ) then
+  if ( #returntable > 0 ) then
     vuln.state = vulns.STATE.EXPLOIT
     vulnpages.name = "Payloads which got reflected"
     vuln.extra_info = stdnse.format_output(true, returnable)..crawler:getLimitations()
