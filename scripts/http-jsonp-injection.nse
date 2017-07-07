@@ -84,13 +84,13 @@ action = function(host, port)
 
         --Try if the callback function is controllable from URL.
         local target = tostring(r.url)
-      local callback, path, response
-    _, _, callback = string.find(target, "%?callback%=(.*)")
+        local callback, path, response
+        _, _, callback = string.find(target, "%?callback%=(.*)")
 
-    if callback then
-      path = string.gsub(path, callback, "testing")
-      response = http.get(host, port, path)
-      if response and response.body and response.status==200 then
+        if callback then
+          path = string.gsub(path, callback, "testing")
+          response = http.get(host, port, path)
+          if response and response.body and response.status==200 then
 
           local status1, fucn1 = checkjson(response.body)
 
