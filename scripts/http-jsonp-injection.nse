@@ -3,10 +3,11 @@ local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
 local json = require "json"
+local httpspider = require "httpspider"
 
 description = [[
-Checks for JSONP(JSON with Padding) endpoints in a response and determine
-if JSONP injection is possible on the site.
+Attempts to discover JSONP endpoints in web servers. JSONP endpoints can be
+used to bypass Same-origin Policy restrictions in web browsers.
 
 The script searches for callback functions in the response to detect JSONP
 endpoints. It also tries to determine callback function through URL(callback 
@@ -19,55 +20,103 @@ References : https://securitycafe.ro/2017/01/18/practical-jsonp-injection/
 
 ---
 -- @usage
--- nmap -p 80 --script http-jsonp-injection <target>
+-- nmap -p 80 --script http-jsonp-detection <target>
 --
 -- @output
 -- {{OUTPUT}}
 --
 -- @xmloutput
 --
--- @args http-jsonp-injection.path The URL path to request. The default path is "/".
+-- @args http-jsonp-detection.path The URL path to request. The default path is "/".
 
 author = {"Vinamra Bhatia"}
 license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
-categories = {"", } --to be figured out!
+categories = {""} --to be figured out!
 
 portrule = shortport.port_or_service({80,443}, "http", "tcp")
 
 local function fail (err) return stdnse.format_output(false, err) end
 
-action = function(host, port)
-  local path = stdnse.get_script_args(SCRIPT_NAME .. ".path") or "/"
-  local response
-
-  response = http.get(host, port, path)
-
-  if response == nil then
-    return fail("Request failed")
-  end
-
-  if response.body == nil then
-    return fail("Response didn't include a proper body.")
-  end
-
-  --Getting the response, trying to find callback function with JSON data inside 
-  --We need the function name as well as whatever inside.
-
+--Checks the body and returns if valid json data is present in callback function
+local checkjson = function(body)
+  
   local func, json_data
-
   _, _, func, json_data = string.find(response.body, "(%S+)%((.*)%)") 
 
-  --Check if the json_data is valid?(This checks case 1 and case 2 discussed)
-  --If valid, we have a JSONP endpoint with func as the function name.
+  --Check if the json_data is valid
+  --If valid, we have a JSONP endpoint with func as the function name
 
   local status, json = json.parse(json_data)
+  return status, func
+end
 
-  if status == true then
-  	--We have found JSONP endpoint
+
+action = function(host, port)
+  local path = stdnse.get_script_args(SCRIPT_NAME .. ".path") or "/"
+  
+  -- crawl to find jsonp endpoints urls
+  local crawler = httpspider.Crawler:new(host, port, path, {scriptname = SCRIPT_NAME})
+
+  if (not(crawler)) then
+    return
   end
 
-  --Case 3 URL?(Isnt it the same way of testing)
+  crawler:set_timeout(10000)
 
-  --Case 4 : Bruteforcing through known URLS? 
+  while(true) do
+    local status, r = crawler:crawl()
+    if (not(status)) then
+      if (r.err) then
+        return stdnse.format_output(false, r.reason)
+      else
+        break
+      end
+    end
+
+    -- First we try to get the response and look for jsonp endpoint there 
+    if r.response and r.response.body and r.response.status==200 then
+
+      local status, func = checkjson(r.response.body)
+
+      if status == true then
+        --We have found JSONP endpoint
+        --Put it inside a returnable table.
+
+        --Try if the callback function is controllable from URL.
+        local target = tostring(r.url)
+      local callback, path, response
+    _, _, callback = string.find(target, "%?callback%=(.*)")
+
+    if callback then
+      path = string.gsub(path, callback, "testing")
+      response = http.get(host, port, path)
+      if response and response.body and response.status==200 then
+
+          local status1, fucn1 = checkjson(response.body)
+
+            if status1 == true then
+              if func1 == testing then
+                --Put in table : (Callback function is completely controllable from URL)
+              elseif 
+                local p = string.find(func1, "testing")
+                if p then 
+                  --Put in table : Callback function is partially controllable from URL
+                end
+              end
+            end
+          end
+        end             
+
+      elseif 
+
+        --Try to bruteforce through most comman callback URLs
+        
+      end 
+
+    end 
+
+  end
+
+  --A way to print returnable 
 
 end 
