@@ -39,7 +39,7 @@ local function fail (err) return stdnse.format_output(false, err) end
 
 --Checks the body and returns if valid json data is present in callback function
 local checkjson = function(body)
-  
+	
   local func, json_data
   _, _, func, json_data = string.find(response.body, "(%S+)%((.*)%)") 
 
@@ -73,26 +73,27 @@ action = function(host, port)
       end
     end
 
+    local target = tostring(r.url)
+
     -- First we try to get the response and look for jsonp endpoint there 
     if r.response and r.response.body and r.response.status==200 then
 
       local status, func = checkjson(r.response.body)
 
       if status == true then
-        --We have found JSONP endpoint
-        --Put it inside a returnable table.
+  	    --We have found JSONP endpoint
+  	    --Put it inside a returnable table.
 
-        --Try if the callback function is controllable from URL.
-        local target = tostring(r.url)
-        local callback, path, response
-        _, _, callback = string.find(target, "%?callback%=(.*)")
+  	    --Try if the callback function is controllable from URL.
+    	  local callback, path, response
+		    _, _, callback = string.find(target, "%?callback%=(.*)")
 
-        if callback then
-          path = string.gsub(path, callback, "testing")
-          response = http.get(host, port, path)
-          if response and response.body and response.status==200 then
+    		if callback then
+    		  path = string.gsub(path, callback, "testing")
+    		  response = http.get(host, port, path)
+    		  if response and response.body and response.status==200 then
 
-          local status1, fucn1 = checkjson(response.body)
+    	      local status1, fucn1 = checkjson(response.body)
 
             if status1 == true then
               if func1 == testing then
@@ -109,8 +110,28 @@ action = function(host, port)
 
       elseif 
 
-        --Try to bruteforce through most comman callback URLs
-        
+      	--Try to bruteforce through most comman callback URLs
+     	  for _,p in ipairs(callbacks) do 
+       	  local callback, response, path
+       	  path = target
+          _, _, callback = string.find(target, "%?(.*)%=")
+          if callback == nil then
+            path = path .. "?" .. p .. "=test"
+          else
+          	path = string.gsub(path, callback, p)
+          end
+          response = http.get(host, port, path)
+          if response and response.body and response.status==200 then 
+
+          	local status1, func1 = checkjson(response.body)
+
+          	if status == true and string.find(func1, p) then
+              --Put in table : Callback function with valid json found
+          	  --Callback function name is p.
+          	  break
+          	end
+          end
+        end
       end 
 
     end 
