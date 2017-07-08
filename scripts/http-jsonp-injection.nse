@@ -37,6 +37,8 @@ portrule = shortport.port_or_service({80,443}, "http", "tcp")
 
 local function fail (err) return stdnse.format_output(false, err) end
 
+local callbacks = {"cb", "jsonp", "jsonpcallback", "jcb", "call"}
+
 --Checks the body and returns if valid json data is present in callback function
 local checkjson = function(body)
 	
@@ -53,7 +55,8 @@ end
 
 action = function(host, port)
   local path = stdnse.get_script_args(SCRIPT_NAME .. ".path") or "/"
-  
+  local output = {}
+
   -- crawl to find jsonp endpoints urls
   local crawler = httpspider.Crawler:new(host, port, path, {scriptname = SCRIPT_NAME})
 
@@ -83,6 +86,8 @@ action = function(host, port)
       if status == true then
   	    --We have found JSONP endpoint
   	    --Put it inside a returnable table.
+        local report = "JSONP endpoint found. Function name is " .. func
+        table.insert(output, report)
 
   	    --Try if the callback function is controllable from URL.
     	  local callback, path, response
@@ -97,11 +102,13 @@ action = function(host, port)
 
             if status1 == true then
               if func1 == testing then
-                --Put in table : (Callback function is completely controllable from URL)
+                local report = "Callback function is completely controllable from the URL"
+                table.insert(output, report)
               elseif 
                 local p = string.find(func1, "testing")
                 if p then 
-                  --Put in table : Callback function is partially controllable from URL
+                  local report = "Callback function is partially controllable from URL"
+                  table.insert(output, report)
                 end
               end
             end
@@ -128,16 +135,23 @@ action = function(host, port)
           	if status == true and string.find(func1, p) then
               --Put in table : Callback function with valid json found
           	  --Callback function name is p.
+              local report = "Callback function " .. p .. "with JSON data found."
+              table.insert(output, report)
           	  break
           	end
           end
         end
-      end 
+      end --elseif
 
     end 
 
   end
 
   --A way to print returnable 
+  if next(output) then
+    return outputt
+  else
+    return "Couldn't find any JSONP endpoints."
+  end 
 
 end 
