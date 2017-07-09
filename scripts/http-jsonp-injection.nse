@@ -77,6 +77,8 @@ action = function(host, port)
     end
 
     local target = tostring(r.url)
+    target = url.parse(target)
+    target = target.path 
 
     -- First we try to get the response and look for jsonp endpoint there 
     if r.response and r.response.body and r.response.status==200 then
@@ -86,7 +88,7 @@ action = function(host, port)
       if status == true then
         --We have found JSONP endpoint
         --Put it inside a returnable table.
-        local report = "JSONP endpoint found. Function name is " .. func
+        local report = "JSONP endpoint found at " .. target .. ". Function name is " .. func
         table.insert(output, report)
 
         --Try if the callback function is controllable from URL.
