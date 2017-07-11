@@ -111,7 +111,7 @@ action = function(host, port)
   output = stdnse.output_table()
 
   -- crawl to find jsonp endpoints urls
-  local crawler = httpspider.Crawler:new(host, port, "/rest/contactsjp.php", {scriptname = SCRIPT_NAME})
+  local crawler = httpspider.Crawler:new(host, port, path, {scriptname = SCRIPT_NAME})
 
   if (not(crawler)) then
     return
