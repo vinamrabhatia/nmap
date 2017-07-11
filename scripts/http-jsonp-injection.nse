@@ -107,8 +107,8 @@ end
 
 action = function(host, port)
   local path = stdnse.get_script_args(SCRIPT_NAME .. ".path") or "/"
-  local output = {}
-  output = stdnse.output_table()
+  local output = stdnse.output_table()
+  output = {}
 
   -- crawl to find jsonp endpoints urls
   local crawler = httpspider.Crawler:new(host, port, path, {scriptname = SCRIPT_NAME})
