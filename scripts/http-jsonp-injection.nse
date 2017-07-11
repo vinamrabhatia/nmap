@@ -132,16 +132,12 @@ action = function(host, port)
     local target = tostring(r.url)
     target = url.parse(target)
     target = target.path 
-    print(r.response.body)
-    print(target)
 
     -- First we try to get the response and look for jsonp endpoint there 
     if r.response and r.response.body and r.response.status==200 then
 
       local report, status, func
       status, func = checkjson(r.response.body)
-      print(func)
-      print("Printing function here")
 
       if status == true then
         --We have found JSONP endpoint
