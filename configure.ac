@@ -742,6 +742,41 @@ AC_SUBST(ZLIB_CLEAN)
 AC_SUBST(ZLIB_DIST_CLEAN)
 AC_SUBST(ZLIB_LIBS)
 
+
+# zlib
+have_zlib=no
+AC_ARG_WITH(zlib,
+AC_HELP_STRING([--with-zlib=DIR], [Use the zlib library from DIR/lib and DIR/include.]),
+[ case "$with_zlib" in
+  yes)
+    have_zlib=yes
+    ;;
+  included)
+    AC_MSG_WARN("zlib is not included with Nmap. Will try to find system version")
+    ;;
+  *)
+    have_zlib=yes
+    CPPFLAGS="-I$with_zlib/include $CPPFLAGS"
+    LDFLAGS="-L$with_zlib/lib $LDFLAGS"
+  ;;
+  esac]
+)
+
+if test $have_zlib != yes; then
+  AC_CHECK_HEADERS([zlib.h],
+    AC_CHECK_LIB(z, gzread, [have_zlib=yes; break],, []))
+fi
+
+LIBZLIB_LIBS=
+if test $have_zlib = yes; then
+  LIBZLIB_LIBS="-lz"
+  AC_DEFINE(HAVE_ZLIB)
+fi
+AC_SUBST(LIBZLIB_LIBS)
+
+
+
+
 have_dnet=no
 requested_included_dnet=no
 LIBDNETDIR=libdnet-stripped
