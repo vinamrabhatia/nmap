@@ -391,6 +391,7 @@ Driver = {
   end,
 
   submit_form = function (self, username, password)
+
     local path = self.options.path
     local tid = stdnse.gettid()
     local thread = self.options.threads[tid]
@@ -505,7 +506,7 @@ action = function (host, port)
   end
 
   local formfields = {}
-  local cookies = {}
+  local cookies = {} --Create a new cookiejar object here
   if not passvar then
     local form, errmsg, dcookies = detect_form(host, port, path, hostname)
     if not form then
@@ -518,7 +519,7 @@ action = function (host, port)
     onsuccess = onsuccess or form.onsuccess
     onfailure = onfailure or form.onfailure
     formfields = form.fields or formfields
-    cookies = dcookies or cookies
+    cookies = dcookies or cookies  --merge_cookie_function of the cookiejar!
     sessioncookies = form.sessioncookies == nil and sessioncookies or form.sessioncookies
   end
 
@@ -602,3 +603,5 @@ action = function (host, port)
   local status, result = engine:start()
   return result
 end
+
+--lines 366-466
