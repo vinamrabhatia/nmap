@@ -414,9 +414,12 @@ Driver = {
         thread.params = form.fields
       end
     end
+    --We can create a httpcookie object here and initialise it to thread.opts.cookies. Since each thread cookies have to be 
+    --handled differently here, we need a new object to be created in the function on every call
     local params = thread.params
     local opts = thread.opts
-    local response
+    local response --I think its better to replace the next part with generic_request of httpcookies if sessioncookies is enables
+    --since cookies would be parsed automatically and we can choose method. 
     if self.options.method == "POST" then
       response = http.post(self.host, self.port, path, opts, nil,
       urlencode_form(params, self.options.uservar, username, self.options.passvar, password))
