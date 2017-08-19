@@ -419,7 +419,7 @@ Driver = {
     local params = thread.params
     local opts = thread.opts
     local response --I think its better to replace the next part with generic_request of httpcookies if sessioncookies is enables
-    --since cookies would be parsed automatically and we can choose method. 
+    --if sessioncookies == true we needd to call httpcookies.get, else http.get
     if self.options.method == "POST" then
       response = http.post(self.host, self.port, path, opts, nil,
       urlencode_form(params, self.options.uservar, username, self.options.passvar, password))
@@ -430,6 +430,8 @@ Driver = {
       response = http.get(self.host, self.port, uri, opts)
     end
     local rcount = 0
+    --if sessioncookies == true we needd to call httpcookies.get, else http.get
+    --when we want opts.cookies = nil, set httpcookies object.cookies = nil as well!
     while response do
       if self.options.is_success and self.options.is_success(response) then
         -- "log out"
